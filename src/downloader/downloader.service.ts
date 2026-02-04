@@ -80,6 +80,23 @@ export class DownloaderService implements OnModuleInit {
       };
     } catch (error: unknown) {
       console.error('Info Error:', error);
+      const stderr =
+        typeof (error as { stderr?: unknown }).stderr === 'string'
+          ? ((error as { stderr?: string }).stderr ?? '')
+          : '';
+      const lowered = stderr.toLowerCase();
+      if (lowered.includes('requested format is not available')) {
+        throw new Error('Requested format မရှိပါ။ အခြား link နဲ့ စမ်းကြည့်ပါ။');
+      }
+      if (lowered.includes('private') || lowered.includes('members-only')) {
+        throw new Error('ဒီဗီဒီယိုက private/members-only ဖြစ်ပါတယ်။');
+      }
+      if (
+        lowered.includes('unavailable') ||
+        lowered.includes('not available')
+      ) {
+        throw new Error('ဒီဗီဒီယိုကို မရနိုင်ပါ။');
+      }
       throw new Error('Video info ရှာမတွေ့ပါဘူး။');
     }
   }
@@ -146,10 +163,7 @@ export class DownloaderService implements OnModuleInit {
         typeof (error as { stderr?: unknown }).stderr === 'string'
           ? ((error as { stderr?: string }).stderr ?? '').toLowerCase()
           : '';
-      if (
-        stderr.includes('max-filesize') ||
-        stderr.includes('max filesize')
-      ) {
+      if (stderr.includes('max-filesize') || stderr.includes('max filesize')) {
         throw new Error('MAX_FILESIZE');
       }
       if (

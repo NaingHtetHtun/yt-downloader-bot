@@ -19,7 +19,10 @@ const telegramApiUrl = process.env.TELEGRAM_API_URL ?? 'http://localhost:8081';
         telegram: {
           apiRoot: telegramApiUrl,
         },
-        handlerTimeout: Infinity, // ၅ မိနစ်အထိ တိုးလိုက်ပါ
+        handlerTimeout: Infinity,
+      },
+      launchOptions: {
+        dropPendingUpdates: true,
       },
     }),
   ],

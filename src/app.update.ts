@@ -20,6 +20,38 @@ function formatBytes(bytes: number): string {
 @Update()
 export class AppUpdate {
   constructor(private readonly downloaderService: DownloaderService) {}
+  private readonly callbackStore = new Map<
+    string,
+    { url: string; createdAt: number }
+  >();
+  private readonly callbackTtlMs = 10 * 60 * 1000;
+
+  private createCallbackKey(url: string): string {
+    const key = `${Date.now().toString(36)}${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+    this.callbackStore.set(key, { url, createdAt: Date.now() });
+    return key;
+  }
+
+  private getCallbackUrl(key: string): string | null {
+    const entry = this.callbackStore.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.createdAt > this.callbackTtlMs) {
+      this.callbackStore.delete(key);
+      return null;
+    }
+    return entry.url;
+  }
+
+  private cleanupCallbacks() {
+    const now = Date.now();
+    for (const [key, value] of this.callbackStore.entries()) {
+      if (now - value.createdAt > this.callbackTtlMs) {
+        this.callbackStore.delete(key);
+      }
+    }
+  }
 
   @Start()
   async startCommand(@Ctx() ctx: Context) {
@@ -35,20 +67,24 @@ export class AppUpdate {
       if (url.includes('youtube.com') || url.includes('youtu.be')) {
         try {
           const info = await this.downloaderService.getVideoInfo(url);
+          this.cleanupCallbacks();
+          const key = this.createCallbackKey(url);
 
           await ctx.reply(
             `ဗီဒီယို: ${info.title}\nကြာချိန်: ${info.duration}\n\nQuality ရွေးချယ်ပေးပါ -`,
             Markup.inlineKeyboard([
               [
-                Markup.button.callback('720p Video', `dl_720_${url}`),
-                Markup.button.callback('360p Video', `dl_360_${url}`),
+                Markup.button.callback('720p Video', `dl_720_${key}`),
+                Markup.button.callback('360p Video', `dl_360_${key}`),
               ],
-              [Markup.button.callback('MP3 Audio', `dl_mp3_${url}`)],
+              [Markup.button.callback('MP3 Audio', `dl_mp3_${key}`)],
             ]),
           );
         } catch (e: any) {
           console.log(e);
-          await ctx.reply('Error: Video ရှာမတွေ့ပါ။');
+          const message =
+            e instanceof Error && e.message ? e.message : 'Video ရှာမတွေ့ပါ။';
+          await ctx.reply(`Error: ${message}`);
         }
       }
     }
@@ -62,10 +98,25 @@ export class AppUpdate {
 
     const data = ctx.callbackQuery.data;
     const parts = data.split('_');
-    const [, quality, ...urlParts] = parts;
-    const url = urlParts.join('_');
+    const [, quality, key] = parts;
+    const url = this.getCallbackUrl(key);
+    if (!url) {
+      try {
+        await ctx.answerCbQuery('ဒီ link က အချိန်ကျော်သွားပါပြီ။');
+      } catch (err) {
+        // Callback might be expired or already answered; ignore to avoid crashing.
+        console.warn('answerCbQuery failed (expired callback).', err);
+      }
+      await ctx.reply('ဒီ link က အချိန်ကျော်သွားပါပြီ။ ပြန်လည်ပို့ပေးပါ။');
+      return;
+    }
 
-    await ctx.answerCbQuery('ဒေါင်းလုဒ်ဆွဲနေပါပြီ...');
+    try {
+      await ctx.answerCbQuery('ဒေါင်းလုဒ်ဆွဲနေပါပြီ...');
+    } catch (err) {
+      // Callback might be expired or already answered; ignore to avoid crashing.
+      console.warn('answerCbQuery failed (expired callback).', err);
+    }
 
     // ၂။ 'as any' သို့မဟုတ် 'as Message.TextMessage' သုံးပြီး type ကို casting လုပ်ပေးပါ
     const statusMsg = await ctx.editMessageText(
@@ -142,7 +193,11 @@ export class AppUpdate {
         );
         return;
       }
-      await ctx.reply('ဒေါင်းလုဒ်ဆွဲရာမှာ အမှားအယွင်းရှိသွားပါတယ်။');
+      await ctx.reply(
+        message
+          ? `ဒေါင်းလုဒ်ဆွဲရာမှာ အမှားရှိပါတယ်: ${message}`
+          : 'ဒေါင်းလုဒ်ဆွဲရာမှာ အမှားအယွင်းရှိသွားပါတယ်။',
+      );
     }
   }
 }
