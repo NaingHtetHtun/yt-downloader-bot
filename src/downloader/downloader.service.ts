@@ -26,7 +26,25 @@ export class DownloaderService implements OnModuleInit {
   }
   private sanitizeFilename(filename: string): string {
     // ဖိုင်နာမည်မှာ သုံးလို့မရတဲ့ character တွေကို ဖယ်ထုတ်တယ် (မြန်မာစာကို ခွင့်ပြုထားပါတယ်)
-    return filename.replace(/[\\/:*?"<>|]/g, '').trim();
+    let safe = filename.replace(/[\\/:*?"<>|]/g, '').trim();
+    // OS path limit safety: keep it short to avoid "File name too long"
+    const maxLength = 60;
+    if (safe.length > maxLength) {
+      safe = safe.slice(0, maxLength).trim();
+    }
+    return safe || 'video';
+  }
+  private getVideoIdFromUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname.includes('youtu.be')) {
+        return parsed.pathname.replace('/', '') || 'video';
+      }
+      const id = parsed.searchParams.get('v');
+      return id ?? 'video';
+    } catch {
+      return 'video';
+    }
   }
   private getBaseFlags(): Record<string, any> {
     return {
@@ -73,7 +91,8 @@ export class DownloaderService implements OnModuleInit {
     // mp3 ဆိုရင် extension ကို .mp3 လို့ ပေးမယ်၊ မဟုတ်ရင် .mp4
     const isMp3 = quality === 'mp3';
     const safeTitle = this.sanitizeFilename(videoTitle);
-    const filename = `${safeTitle}_${Date.now()}.${isMp3 ? 'mp3' : 'mp4'}`;
+    const videoId = this.getVideoIdFromUrl(url);
+    const filename = `${safeTitle}_${videoId}_${Date.now()}.${isMp3 ? 'mp3' : 'mp4'}`;
     const outputPath = path.join(this.downloadPath, filename);
 
     try {
@@ -132,6 +151,13 @@ export class DownloaderService implements OnModuleInit {
         stderr.includes('max filesize')
       ) {
         throw new Error('MAX_FILESIZE');
+      }
+      if (
+        stderr.includes('file name too long') ||
+        stderr.includes('filename too long') ||
+        stderr.includes('errno 36')
+      ) {
+        throw new Error('FILENAME_TOO_LONG');
       }
       throw new Error(
         'ဖိုင်ဒေါင်းလုဒ်ဆွဲရာမှာ အမှားအယွင်းရှိလို့ ပြန်စမ်းကြည့်ပေးပါ။',
