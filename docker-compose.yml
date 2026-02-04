@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  telegram-bot-api:
+    image: divideprojects/docker-telegram-bot-api:latest
+    restart: unless-stopped
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH}
+      TELEGRAM_LOCAL: "true"
+    volumes:
+      - ./telegram-bot-api-data:/var/lib/telegram-bot-api
+    ports:
+      - "8081:8081"

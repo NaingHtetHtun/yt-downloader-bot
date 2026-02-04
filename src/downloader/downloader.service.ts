@@ -14,7 +14,9 @@ interface YtResponse {
 
 @Injectable()
 export class DownloaderService implements OnModuleInit {
-  private readonly downloadPath = path.join(process.cwd(), 'downloads');
+  private readonly downloadPath = path.resolve(
+    process.env.DOWNLOAD_DIR ?? path.join(process.cwd(), 'downloads_user'),
+  );
   private readonly cookiePath = path.join(process.cwd(), 'cookies.txt');
   private readonly pluginPath = path.join(process.cwd(), 'custom_plugins');
   onModuleInit() {
@@ -121,10 +123,13 @@ export class DownloaderService implements OnModuleInit {
       return outputPath;
     } catch (error) {
       console.error('Download error:', error);
-      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      const stderr =
+        typeof (error as { stderr?: unknown }).stderr === 'string'
+          ? ((error as { stderr?: string }).stderr ?? '').toLowerCase()
+          : '';
       if (
-        message.includes('max-filesize') ||
-        message.includes('max filesize')
+        stderr.includes('max-filesize') ||
+        stderr.includes('max filesize')
       ) {
         throw new Error('MAX_FILESIZE');
       }
