@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 const downloader = create('/usr/local/bin/yt-dlp');
+const TELEGRAM_MAX_FILE_MB = Number(process.env.TELEGRAM_MAX_FILE_MB ?? 50);
 
 interface YtResponse {
   title: string;
@@ -100,6 +101,7 @@ export class DownloaderService implements OnModuleInit {
         ...this.getBaseFlags(), // ဒါလေး ထည့်ပေးလိုက်တာနဲ့ plugin setting တွေ အကုန်ပါသွားမယ်
         output: outputPath,
         format: formatStr,
+        maxFilesize: `${TELEGRAM_MAX_FILE_MB}M`,
       } as YtFlags;
       // const options: YtFlags = {
       //   output: outputPath,
@@ -119,6 +121,13 @@ export class DownloaderService implements OnModuleInit {
       return outputPath;
     } catch (error) {
       console.error('Download error:', error);
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      if (
+        message.includes('max-filesize') ||
+        message.includes('max filesize')
+      ) {
+        throw new Error('MAX_FILESIZE');
+      }
       throw new Error(
         'ဖိုင်ဒေါင်းလုဒ်ဆွဲရာမှာ အမှားအယွင်းရှိလို့ ပြန်စမ်းကြည့်ပေးပါ။',
       );

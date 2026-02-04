@@ -3,6 +3,20 @@ import { Context, Markup } from 'telegraf';
 import * as fs from 'fs';
 import { DownloaderService } from './downloader/downloader.service';
 
+const TELEGRAM_MAX_FILE_MB = Number(process.env.TELEGRAM_MAX_FILE_MB ?? 50);
+const TELEGRAM_MAX_FILE_BYTES = TELEGRAM_MAX_FILE_MB * 1024 * 1024;
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const idx = Math.min(
+    units.length - 1,
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+  );
+  const value = bytes / Math.pow(1024, idx);
+  return `${value.toFixed(value >= 10 || idx === 0 ? 0 : 1)} ${units[idx]}`;
+}
+
 @Update()
 export class AppUpdate {
   constructor(private readonly downloaderService: DownloaderService) {}
@@ -76,6 +90,23 @@ export class AppUpdate {
         videoInfo.title,
       );
 
+      const fileSize = fs.statSync(filePath).size;
+      if (fileSize > TELEGRAM_MAX_FILE_BYTES) {
+        await ctx.reply(
+          `ဖိုင်အရွယ်အစား ${formatBytes(
+            fileSize,
+          )} ဖြစ်လို့ Telegram Bot API က ပို့ခွင့်မပြုပါ။ ` +
+            `လက်ရှိ bot အတွက် ခွင့်ပြုထားတဲ့ အများဆုံးက ${formatBytes(
+              TELEGRAM_MAX_FILE_BYTES,
+            )} ပါ။\n\n` +
+            `နိမ့်တဲ့ quality ကို ရွေးပါ၊ ဒါမှမဟုတ် external link (Drive/Cloud) ပို့တဲ့နည်းကို သုံးပါ။`,
+        );
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        return;
+      }
+
       // File ပို့တဲ့အပိုင်း
       if (quality === 'mp3') {
         await ctx.replyWithAudio(
@@ -94,6 +125,16 @@ export class AppUpdate {
       }
     } catch (error) {
       console.error('Download Action Error:', error);
+      const message = error instanceof Error ? error.message : '';
+      if (message === 'MAX_FILESIZE') {
+        await ctx.reply(
+          `Telegram Bot API က ${formatBytes(
+            TELEGRAM_MAX_FILE_BYTES,
+          )} ထက်ကြီးတဲ့ဖိုင်ကို မပို့ခွင့်ပေးပါ။ ` +
+            `နိမ့်တဲ့ quality ရွေးပါ၊ ဒါမှမဟုတ် external link (Drive/Cloud) ပို့ပါ။`,
+        );
+        return;
+      }
       await ctx.reply('ဒေါင်းလုဒ်ဆွဲရာမှာ အမှားအယွင်းရှိသွားပါတယ်။');
     }
   }
