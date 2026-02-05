@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { AppUpdate } from './app.update';
 import { DownloaderService } from './downloader/downloader.service';
+import { MovieService } from './movie/movie.service';
 
 const botToken = process.env.BOT_TOKEN ?? '';
 if (!botToken) {
@@ -27,6 +28,6 @@ const telegramApiUrl = process.env.TELEGRAM_API_URL ?? 'http://localhost:8081';
     }),
   ],
   controllers: [AppController],
-  providers: [AppService, AppUpdate, DownloaderService],
+  providers: [AppService, AppUpdate, DownloaderService, MovieService],
 })
 export class AppModule {}
