@@ -25,6 +25,27 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Railway two-service setup
+
+This project needs a local Telegram Bot API server to send files larger than 50 MB.
+For Railway, run it as a separate service and point the bot to the Railway internal URL.
+
+Bot API service (Railway):
+- Root directory: `bot-api`
+- Environment variables:
+- `TELEGRAM_API_ID`
+- `TELEGRAM_API_HASH`
+- `TELEGRAM_LOCAL=true`
+
+Bot app service (Railway):
+- Root directory: repo root
+- Environment variables:
+- `BOT_TOKEN`
+- `TELEGRAM_API_URL=http://demonblackbotapi.railway.internal:8081`
+
+Local Docker Compose:
+- `TELEGRAM_API_URL=http://telegram-bot-api:8081` (service name in `docker-compose.yml`)
+
 ## Project setup
 
 ```bash

@@ -11,7 +11,8 @@ if (!botToken) {
   throw new Error('BOT_TOKEN is required');
 }
 
-const telegramApiUrl = process.env.TELEGRAM_API_URL ?? 'http://localhost:8081';
+const telegramApiUrl =
+  process.env.TELEGRAM_API_URL ?? 'https://api.telegram.org';
 @Module({
   imports: [
     TelegrafModule.forRoot({
