@@ -1,3 +1,5 @@
 [phases.setup]
-aptPkgs = ["python3", "python-is-python3"]
+nixPkgs = ["python3", "yt-dlp", "ffmpeg"]
 
+[phases.build]
+cmds = ["pnpm install --frozen-lockfile", "pnpm run build"]
