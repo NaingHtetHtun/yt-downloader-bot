@@ -4,19 +4,31 @@ import { AppService } from './app.service';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { AppUpdate } from './app.update';
 import { DownloaderService } from './downloader/downloader.service';
+import { MovieService } from './movie/movie.service';
+
+const botToken = process.env.BOT_TOKEN ?? '';
+if (!botToken) {
+  throw new Error('BOT_TOKEN is required');
+}
+
+const telegramApiUrl =
+  process.env.TELEGRAM_API_URL ?? 'https://api.telegram.org';
 @Module({
   imports: [
     TelegrafModule.forRoot({
-      token: '7299953702:AAF6Ipmg_4cAtFi5DGRj-taaPJDcvsZm0bc',
+      token: botToken,
       options: {
         telegram: {
-          apiRoot: 'http://localhost:8081',
+          apiRoot: telegramApiUrl,
         },
-        handlerTimeout: Infinity, // ၅ မိနစ်အထိ တိုးလိုက်ပါ
+        handlerTimeout: Infinity,
+      },
+      launchOptions: {
+        dropPendingUpdates: true,
       },
     }),
   ],
   controllers: [AppController],
-  providers: [AppService, AppUpdate, DownloaderService],
+  providers: [AppService, AppUpdate, DownloaderService, MovieService],
 })
 export class AppModule {}

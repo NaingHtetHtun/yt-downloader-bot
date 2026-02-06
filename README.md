@@ -25,6 +25,49 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Railway two-service setup
+
+This project needs a local Telegram Bot API server to send files larger than 50 MB.
+For Railway, run it as a separate service and point the bot to the Railway internal URL.
+
+Bot API service (Railway):
+- Root directory: `bot-api`
+- Environment variables:
+- `TELEGRAM_API_ID`
+- `TELEGRAM_API_HASH`
+- `TELEGRAM_LOCAL=true`
+
+Bot app service (Railway):
+- Root directory: repo root
+- Environment variables:
+- `BOT_TOKEN`
+- `TELEGRAM_API_URL=http://demonblackbotapi.railway.internal:8081`
+
+Local Docker Compose:
+- `TELEGRAM_API_URL=http://telegram-bot-api:8081` (service name in `docker-compose.yml`)
+
+## YouTube cookies (Railway recommended)
+
+Some YouTube videos require sign-in. Railway has no browser session, so `--cookies-from-browser` will not work. Use the base64 cookie env var.
+
+Steps:
+- Export YouTube cookies in Netscape format on your local machine.
+- Base64 encode the file.
+- Set `YTDLP_COOKIES_B64` in Railway secrets.
+
+Encode commands:
+```bash
+# Linux
+base64 -w 0 cookies.txt
+
+# macOS
+base64 cookies.txt | tr -d '\n'
+```
+
+Notes:
+- The app writes cookies to `/tmp/yt-cookies.txt` automatically.
+- No manual cookie path updates are needed.
+
 ## Project setup
 
 ```bash
