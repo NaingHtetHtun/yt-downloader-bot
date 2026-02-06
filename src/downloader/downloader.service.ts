@@ -16,6 +16,8 @@ interface YtResponse {
 
 type YtFlagsExtended = YtFlags & {
   extractorArgs?: string;
+  cookies?: string;
+  cookiesFromBrowser?: string;
 };
 type JsonRecord = Record<string, unknown>;
 const asRecord = (value: unknown): JsonRecord | null =>
@@ -34,6 +36,7 @@ export class DownloaderService implements OnModuleInit {
     process.env.DOWNLOAD_DIR ?? path.join(process.cwd(), 'downloads_user'),
   );
   private readonly cookiePath = path.join(process.cwd(), 'cookies.txt');
+  private readonly cookieTmpPath = path.join('/tmp', 'yt-cookies.txt');
   private readonly pluginPath = path.join(process.cwd(), 'custom_plugins');
   onModuleInit() {
     if (!fs.existsSync(this.downloadPath)) {
@@ -208,6 +211,37 @@ export class DownloaderService implements OnModuleInit {
     return Array.from(new Set(urls));
   }
 
+  private getCookieFlags(): Partial<YtFlagsExtended> {
+    const cookieBase64 = process.env.YTDLP_COOKIES_B64?.trim();
+    if (cookieBase64) {
+      try {
+        const decoded = Buffer.from(cookieBase64, 'base64').toString('utf-8');
+        fs.writeFileSync(this.cookieTmpPath, decoded, { mode: 0o600 });
+        return { cookies: this.cookieTmpPath };
+      } catch (error) {
+        console.warn('Failed to decode YTDLP_COOKIES_B64:', error);
+      }
+    }
+    const cookieFromBrowser = process.env.YTDLP_COOKIES_FROM_BROWSER?.trim();
+    if (cookieFromBrowser) {
+      return { cookiesFromBrowser: cookieFromBrowser };
+    }
+    const cookiePath =
+      process.env.YTDLP_COOKIES_PATH?.trim() ??
+      process.env.COOKIES_PATH?.trim();
+    if (cookiePath) {
+      if (fs.existsSync(cookiePath)) {
+        return { cookies: cookiePath };
+      }
+      console.warn(`Cookie file not found: ${cookiePath}`);
+      return {};
+    }
+    if (fs.existsSync(this.cookiePath)) {
+      return { cookies: this.cookiePath };
+    }
+    return {};
+  }
+
   async getTikTokPhotoPost(url: string): Promise<{
     title: string;
     images: string[];
@@ -257,6 +291,7 @@ export class DownloaderService implements OnModuleInit {
       pluginDirs: this.pluginPath,
       jsRuntimes: 'node',
       noPlaylist: true,
+      ...this.getCookieFlags(),
     };
     // Use YouTube-specific extractor args only when needed.
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
@@ -325,6 +360,15 @@ export class DownloaderService implements OnModuleInit {
       if (lowered.includes('unsupported url') && this.isTikTokUrl(url)) {
         throw new Error(
           'TikTok photo post ကို မထောက်ပံ့သေးပါ။ Video link ပို့ပေးပါ။',
+        );
+      }
+      if (
+        lowered.includes('sign in to confirm') ||
+        lowered.includes('not a bot') ||
+        lowered.includes('use --cookies')
+      ) {
+        throw new Error(
+          'YouTube က login လိုပါတယ်။ cookies ထည့်ပေးပြီး ပြန်စမ်းကြည့်ပါ။',
         );
       }
       if (lowered.includes('requested format is not available')) {
@@ -431,6 +475,15 @@ export class DownloaderService implements OnModuleInit {
           : '';
       if (stderr.includes('max-filesize') || stderr.includes('max filesize')) {
         throw new Error('MAX_FILESIZE');
+      }
+      if (
+        stderr.includes('sign in to confirm') ||
+        stderr.includes('not a bot') ||
+        stderr.includes('use --cookies')
+      ) {
+        throw new Error(
+          'YouTube က login လိုပါတယ်။ cookies ထည့်ပေးပြီး ပြန်စမ်းကြည့်ပါ။',
+        );
       }
       if (
         stderr.includes('file name too long') ||
